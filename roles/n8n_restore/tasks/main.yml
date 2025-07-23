@@ -1,42 +1,62 @@
 ---
-# Востановление из backup с Google Drive
-- name: Остановить Docker-контейнеры перед восстановлением
+# tasks file for restore_n8n
+
+- name: 1. Остановить сервисы n8n перед восстановлением
   community.docker.docker_compose_v2:
-    project_src: /opt/containers
+    project_name: n8n
+    # Указываем путь к шаблону, чтобы Ansible знал, какие контейнеры останавливать
+    definition: "{{ lookup('ansible.builtin.template', 'roles/n8n_vps/n8n_deploy/templates/docker-compose.yml.j2') | from_yaml }}"
     state: absent
   ignore_errors: yes
+  tags:
+    - restore
 
-- name: Очистить старые данные вольюмов
-  file:
+- name: 2. Очистить старые данные в вольюмах
+  ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   with_items:
-    - /opt/containers/data/nginx
-    - /opt/containers/data/letsencrypt
-    - /opt/containers/data/n8n
+    # Мы удаляем содержимое, а не сами вольюмы, чтобы Docker не ругался
+    - /var/lib/docker/volumes/n8n_data/_data
+    - /var/lib/docker/volumes/traefik_data/_data
+  tags:
+    - restore
 
-- name: Скачать указанный бекап с Google Drive
-  shell: "rclone copy 'gdrive03:backup_test/srv_test/{{ backup_file_name }}' /tmp/"
+- name: 3. Скачать указанный бекап с Google Drive
+  ansible.builtin.shell: "rclone copy 'gdrive03:backup_test/srv_test/{{ backup_file_name }}' /tmp/"
   args:
     executable: /bin/bash
+  tags:
+    - restore
 
-- name: Распаковать архив с данными
-  unarchive:
+- name: 4. Распаковать архив с данными в корень файловой системы
+  ansible.builtin.unarchive:
     src: "/tmp/{{ backup_file_name }}"
-    dest: /opt/containers/
+    dest: /
     remote_src: yes
-    #extra_opts: [--strip-components=1] # Может потребоваться для удаления корневой папки из архива
+  tags:
+    - restore
 
-  # Востанавливаем права для пользователя 
-- name: Установить права для каталога n8n
-  file:
-    path: /opt/containers/data/n8n
+- name: 5. Установить правильные права для данных n8n
+  ansible.builtin.file:
+    path: /var/lib/docker/volumes/n8n_data/_data
     state: directory
     recurse: yes
-    owner: 1000
-    group: 1000
+    # n8n внутри контейнера работает под пользователем node (uid 1000)
+    owner: '1000'
+    group: '1000'
+  tags:
+    - restore
 
-- name: Запустить Docker-контейнеры
-  community.docker.docker_compose_v2:
-    project_src: /opt/containers
-    state: present
+- name: 6. Удалить локальный архив после распаковки
+  ansible.builtin.file:
+    path: "/tmp/{{ backup_file_name }}"
+    state: absent
+  tags:
+    - restore
+
+- name: "ЗАВЕРШЕНИЕ: Данные восстановлены. Запустите деплой n8n"
+  ansible.builtin.debug:
+    msg: "Данные из файла '{{ backup_file_name }}' успешно восстановлены. Теперь запустите ваш основной плейбук для деплоя, чтобы поднять все сервисы."
+  tags:
+    - restore

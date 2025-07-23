@@ -1,7 +1,12 @@
 ---
-- name: Востановление из резервной копии сервера
-  hosts: n8n_vps # Или укажите конкретную группу из inventory
-  become: yes
-  roles:
-    - restore_n8n
-  
+  - name: Восстановление n8n из резервной копии
+    hosts: n8n_vps
+    become: yes
+
+    vars_prompt:
+      - name: backup_file_name
+        prompt: "Введите точное имя файла бекапа для восстановления (например, backup-n8n.server.com-2025-07-23T12_00_00.tar.gz)"
+        private: no
+
+    roles:
+      - restore_n8n

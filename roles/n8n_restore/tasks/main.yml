@@ -12,7 +12,7 @@
   tags:
     - restore
 
-- name: 2. Очистить старые данные в вольюмах
+- name: 2. Очистить старые данные в вольюмах (удаление)
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
@@ -38,7 +38,20 @@
   tags:
     - restore
 
-- name: 5. Установить правильные права для данных n8n
+- name: 5. Гарантированно создать директории для данных (ПОСЛЕ распаковки)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  with_items:
+    - /var/lib/docker/volumes/n8n_data/_data
+    - /var/lib/docker/volumes/traefik_data/_data
+  tags:
+    - restore
+
+- name: 6. Установить правильные права для данных n8n
   ansible.builtin.file:
     path: /var/lib/docker/volumes/n8n_data/_data
     state: directory
@@ -49,14 +62,14 @@
   tags:
     - restore
 
-- name: 6. Удалить локальный архив после распаковки
+- name: 7. Удалить локальный архив после распаковки
   ansible.builtin.file:
     path: "/tmp/{{ backup_file_name }}"
     state: absent
   tags:
     - restore
 
-- name: "ЗАВЕРШЕНИЕ: Данные восстановлены. Запустите деплой n8n"
+- name: "ЗАВЕРШЕНИЕ: Данные восстановлены. Запустите деплой"
   ansible.builtin.debug:
     msg: "Данные из файла '{{ backup_file_name }}' успешно восстановлены. Теперь запустите ваш основной плейбук для деплоя, чтобы поднять все сервисы."
   tags:

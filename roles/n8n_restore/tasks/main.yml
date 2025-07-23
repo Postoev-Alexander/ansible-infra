@@ -17,28 +17,12 @@
     path: "{{ item }}"
     state: absent
   with_items:
-    # Мы удаляем содержимое, а не сами вольюмы, чтобы Docker не ругался
     - /var/lib/docker/volumes/n8n_data/_data
     - /var/lib/docker/volumes/traefik_data/_data
   tags:
     - restore
 
-- name: 3. Скачать указанный бекап с Google Drive
-  ansible.builtin.shell: "rclone copy 'gdrive03:backup_test/srv_test/{{ backup_file_name }}' /tmp/"
-  args:
-    executable: /bin/bash
-  tags:
-    - restore
-
-- name: 4. Распаковать архив с данными в корень файловой системы
-  ansible.builtin.unarchive:
-    src: "/tmp/{{ backup_file_name }}"
-    dest: /
-    remote_src: yes
-  tags:
-    - restore
-
-- name: 5. Гарантированно создать директории для данных (ПОСЛЕ распаковки)
+- name: 3. Гарантированно пересоздать пустые директории для данных
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -51,7 +35,37 @@
   tags:
     - restore
 
-- name: 6. Установить правильные права для данных n8n
+- name: 4. Скачать указанный бекап с Google Drive
+  ansible.builtin.shell: "rclone copy 'gdrive03:backup_test/srv_test/{{ backup_file_name }}' /tmp/"
+  args:
+    executable: /bin/bash
+  tags:
+    - restore
+
+# === ОТЛАДОЧНЫЙ ШАГ НАЧАЛО ===
+- name: 5. Показать содержимое архива для отладки
+  ansible.builtin.shell: "tar -tvf /tmp/{{ backup_file_name }}"
+  register: archive_contents
+  changed_when: false
+  tags:
+    - restore
+
+- name: 6. Вывести содержимое архива (посмотрите на пути)
+  ansible.builtin.debug:
+    var: archive_contents.stdout_lines
+  tags:
+    - restore
+# === ОТЛАДОЧНЫЙ ШАГ КОНЕЦ ===
+
+- name: 7. Распаковать архив с данными в корень файловой системы
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ backup_file_name }}"
+    dest: /
+    remote_src: yes
+  tags:
+    - restore
+
+- name: 8. Установить правильные права для данных n8n
   ansible.builtin.file:
     path: /var/lib/docker/volumes/n8n_data/_data
     state: directory
@@ -62,7 +76,7 @@
   tags:
     - restore
 
-- name: 7. Удалить локальный архив после распаковки
+- name: 9. Удалить локальный архив после распаковки
   ansible.builtin.file:
     path: "/tmp/{{ backup_file_name }}"
     state: absent

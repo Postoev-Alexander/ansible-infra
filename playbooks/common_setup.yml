@@ -1,0 +1,9 @@
+---
+- name: Common server setup, Docker installation and Traefik deployment
+  hosts: traefik_vps 
+  become: yes
+  roles:
+    - docker_compose          # Сначала устанавливаем Docker compose
+    - docker_network_create   # Затем создаём общую сеть Docker
+    - rclone_setup            # устанавливаем rclone
+    - traefik                 # После этого деплоим Traefik

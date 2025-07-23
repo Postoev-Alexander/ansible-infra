@@ -11,7 +11,7 @@
     mode: '0600'
 
 - name: Загрузить резервную копию на Google Drive через rclone
-  shell: "rclone copy /tmp/backup-{{ inventory_hostname }}-{{ ansible_date_time.iso8601 | regex_replace(':', '_') }}.tar.gz gdrive03:backup_test/srv_test/"
+  shell: "rclone copy /tmp/backup-{{ inventory_hostname }}-{{ ansible_date_time.iso8601 | regex_replace(':', '_') }}.tar.gz gdrive03:backup_services/n8n/"
   args:
     executable: /bin/bash
 

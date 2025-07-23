@@ -4,8 +4,6 @@
 - name: 1. Остановить сервисы n8n перед восстановлением
   community.docker.docker_compose_v2:
     project_name: n8n
-    # Указываем путь к шаблону, чтобы Ansible знал, какие контейнеры останавливать
-    definition: "{{ lookup('ansible.builtin.template', 'roles/n8n_vps/n8n_deploy/templates/docker-compose.yml.j2') | from_yaml }}"
     state: absent
   ignore_errors: yes
   tags:

@@ -9,4 +9,4 @@
         private: no
 
     roles:
-      - restore_n8n
+      - n8n_restore

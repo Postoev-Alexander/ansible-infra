@@ -4,6 +4,6 @@
   become: yes
   roles:
     - docker_compose          # Сначала устанавливаем Docker compose
-    - docker_network_create   # Затем создаём общую сеть Docker
+    - docker_network_create_traefik   # Затем создаём общую сеть Docker
     - rclone_setup            # устанавливаем rclone
     - traefik                 # После этого деплоим Traefik

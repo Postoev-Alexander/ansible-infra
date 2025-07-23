@@ -1,10 +1,13 @@
 ---
 # tasks file for restore_n8n
 
-- name: 1. Остановить сервисы n8n перед восстановлением
-  community.docker.docker_compose_v2:
-    project_name: n8n
+- name: 1. Остановить и удалить контейнеры n8n и traefik
+  community.docker.docker_container:
+    name: "{{ item }}"
     state: absent
+  with_items:
+    - n8n
+    - traefik
   ignore_errors: yes
   tags:
     - restore

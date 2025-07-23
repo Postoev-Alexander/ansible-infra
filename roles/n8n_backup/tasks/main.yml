@@ -4,10 +4,6 @@
     path:
       - /var/lib/docker/volumes/n8n_data
       - /var/lib/docker/volumes/traefik_data
-      #- /opt/containers/data/nginx
-      #- /opt/containers/data/letsencrypt
-      #- /opt/containers/data/n8n
-      #- /opt/containers/docker-compose.yml
     dest: "/tmp/backup-{{ inventory_hostname }}-{{ ansible_date_time.iso8601 | regex_replace(':', '_') }}.tar.gz"
     format: gz
     owner: root

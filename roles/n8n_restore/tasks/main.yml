@@ -32,7 +32,7 @@
 - name: 4. Распаковать архив с данными в директорию с вольюмами
   ansible.builtin.unarchive:
     src: "/tmp/{{ backup_file_name }}"
-    dest: /var/lib/docker/volumes/ # <--- ИЗМЕНЕНИЕ ЗДЕСЬ
+    dest: /var/lib/docker/volumes/
     remote_src: yes
   tags:
     - restore
@@ -45,6 +45,7 @@
     # n8n внутри контейнера работает под пользователем node (uid 1000)
     owner: '1000'
     group: '1000'
+    mode: 'u=rwX,g=rX,o=rX'
   tags:
     - restore
 

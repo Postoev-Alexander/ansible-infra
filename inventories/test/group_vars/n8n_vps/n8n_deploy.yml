@@ -1,3 +1,3 @@
 ---
 n8n_version: "1.103.1" # Или конкретная версия, например "1.102.4""
-n8n_subdomain: "n8n"  # Поддомен для n8n, например, n8n.winzardy.com
+n8n_subdomain: "tn8n"  # Поддомен для n8n, например, n8n.winzardy.com

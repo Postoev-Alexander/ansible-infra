@@ -9,14 +9,21 @@
     - "{{ postgres_config_path }}"
     - "{{ postgres_config_path }}/certs"
 
-- name: 2. Copy SSL certificates to the server
+- name: 2. Copy SSL public certificate (server.crt)
   become: yes
   ansible.builtin.copy:
-    src: "certs/"
-    dest: "{{ postgres_config_path }}/certs/"
-    mode: '0644'
+    src: "certs/server.crt"
+    dest: "{{ postgres_config_path }}/certs/server.crt"
+    mode: '0644' # Эти права подходят для публичного сертификата
 
-- name: 3. Create PostgreSQL config files from templates
+- name: 3. Copy SSL private key (server.key) with strict permissions
+  become: yes
+  ansible.builtin.copy:
+    src: "certs/server.key"
+    dest: "{{ postgres_config_path }}/certs/server.key"
+    mode: '0600' # КРИТИЧЕСКИ ВАЖНО: Устанавливает права на чтение/запись только для владельца
+
+- name: 4. Create PostgreSQL config files from templates
   become: yes
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -26,7 +33,7 @@
     - { src: 'postgresql.conf.j2', dest: 'postgresql.conf' }
     - { src: 'pg_hba.conf.j2', dest: 'pg_hba.conf' }
 
-- name: 4. Ensure correct permissions for the container
+- name: 5. Ensure correct permissions for the container
   become: yes
   ansible.builtin.file:
     path: "{{ postgres_config_path }}"
@@ -34,18 +41,18 @@
     group: 999
     recurse: yes
 
-- name: 5. Ensure PostgreSQL data volume exists
+- name: 6. Ensure PostgreSQL data volume exists
   community.docker.docker_volume:
     name: "{{ postgres_volume_name }}"
     state: present
 
-- name: 6. Deploy PostgreSQL container via Docker Compose
+- name: 7. Deploy PostgreSQL container via Docker Compose
   community.docker.docker_compose_v2:
     project_name: "{{ postgres_project_name }}"
     definition: "{{ lookup('template', 'docker-compose.yml.j2') | from_yaml }}"
     state: present
 
-- name: 7. Configure firewall (UFW)
+- name: 8. Configure firewall (UFW)
   become: yes
   block:
     - name: Allow SSH connections (important!)

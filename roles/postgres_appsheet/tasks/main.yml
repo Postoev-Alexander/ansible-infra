@@ -25,20 +25,38 @@
     dest: "{{ postgres_config_path }}/custom-settings.sql"
     mode: '0644'
 
-# Задача 5 (chown) больше не нужна, так как мы указываем owner/group при копировании
-# Задача 4 (копирование старых конфигов) удалена
-
-- name: 6. Ensure PostgreSQL data volume exists
+- name: 4. Ensure PostgreSQL data volume exists
   community.docker.docker_volume:
     name: "{{ postgres_volume_name }}"
     state: present
 
-- name: 7. Deploy PostgreSQL container
+- name: 5. Deploy PostgreSQL container
   community.docker.docker_compose_v2:
     project_name: "{{ postgres_project_name }}"
     definition: "{{ lookup('template', 'docker-compose.yml.j2') | from_yaml }}"
     state: present
 
-- name: 8. Configure firewall (UFW)
+- name: 6. Configure firewall (UFW)
   become: yes
-  ansible.builtin.import_tasks: ufw.yml # Вынесем в отдельный файл для чистоты
+  block:
+    - name: Allow SSH connections (important!)
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: Allow PostgreSQL port only from AppSheet IPs
+      community.general.ufw:
+        rule: allow
+        src: "{{ item }}"
+        port: '5432'
+        proto: tcp
+      with_items:
+        - '34.64.0.0/12'
+        - '35.224.0.0/12'
+        - '64.18.0.0/16'
+        - '104.155.128.0/17'
+        - '130.211.0.0/16'
+
+    - name: Enable UFW firewall if it is not active
+      community.general.ufw:
+        state: enabled

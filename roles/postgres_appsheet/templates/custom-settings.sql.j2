@@ -1,7 +1,4 @@
-# Accept connections from any IP address
-listen_addresses = '*'
-
-# SSL Settings
-ssl = on
-ssl_cert_file = '/etc/ssl/certs/server.crt'
-ssl_key_file = '/etc/ssl/private/server.key'
+-- Устанавливаем настройки SSL. PostgreSQL запишет их в postgresql.auto.conf
+ALTER SYSTEM SET ssl TO 'on';
+ALTER SYSTEM SET ssl_cert_file TO '/etc/ssl/certs/server.crt';
+ALTER SYSTEM SET ssl_key_file TO '/etc/ssl/private/server.key';

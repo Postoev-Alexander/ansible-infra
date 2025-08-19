@@ -16,7 +16,7 @@ services:
       - "{{ postgres_config_path }}/certs/server.key:/etc/ssl/private/server.key:ro"
       - "{{ postgres_config_path }}/postgresql.conf:/etc/postgresql/postgresql.conf:ro"
       - "{{ postgres_config_path }}/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro"
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf
+    
 
 volumes:
   "{{ postgres_volume_name }}":

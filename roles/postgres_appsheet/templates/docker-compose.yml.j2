@@ -9,7 +9,7 @@ services:
       POSTGRES_DB: "{{ postgres_db_name }}"
       POSTGRES_USER: "{{ postgres_db_user }}"
       POSTGRES_PASSWORD: "{{ postgres_db_password }}"
-      PGDATA: /var/lib/postgresql/data/pgdata
+
     volumes:
       - "{{ postgres_volume_name }}:/var/lib/postgresql/data"
       - "{{ postgres_config_path }}/certs/server.crt:/etc/ssl/certs/server.crt:ro"

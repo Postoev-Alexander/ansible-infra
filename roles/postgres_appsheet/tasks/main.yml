@@ -1,0 +1,72 @@
+---
+- name: 1. Create directories for config and certs
+  become: yes
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - "{{ postgres_config_path }}"
+    - "{{ postgres_config_path }}/certs"
+
+- name: 2. Copy SSL certificates to the server
+  become: yes
+  ansible.builtin.copy:
+    src: "certs/"
+    dest: "{{ postgres_config_path }}/certs/"
+    mode: '0644'
+
+- name: 3. Create PostgreSQL config files from templates
+  become: yes
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ postgres_config_path }}/{{ item.dest }}"
+    mode: '0644'
+  with_items:
+    - { src: 'postgresql.conf.j2', dest: 'postgresql.conf' }
+    - { src: 'pg_hba.conf.j2', dest: 'pg_hba.conf' }
+
+- name: 4. Ensure correct permissions for the container
+  become: yes
+  ansible.builtin.file:
+    path: "{{ postgres_config_path }}"
+    owner: 999 # postgres user ID inside the container
+    group: 999
+    recurse: yes
+
+- name: 5. Ensure PostgreSQL data volume exists
+  community.docker.docker_volume:
+    name: "{{ postgres_volume_name }}"
+    state: present
+
+- name: 6. Deploy PostgreSQL container via Docker Compose
+  community.docker.docker_compose_v2:
+    project_name: "{{ postgres_project_name }}"
+    definition: "{{ lookup('template', 'docker-compose.yml.j2') | from_yaml }}"
+    state: present
+
+- name: 7. Configure firewall (UFW)
+  become: yes
+  block:
+    - name: Allow SSH connections (important!)
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: Allow PostgreSQL port only from AppSheet IPs
+      community.general.ufw:
+        rule: allow
+        src: "{{ item }}"
+        port: '5432'
+        proto: tcp
+      with_items:
+        - '34.64.0.0/12'
+        - '35.224.0.0/12'
+        - '64.18.0.0/16'
+        - '104.155.128.0/17'
+        - '130.211.0.0/16'
+        # ...и другие IP AppSheet при необходимости
+
+    - name: Enable UFW firewall if it is not active
+      community.general.ufw:
+        state: enabled

@@ -1,76 +1,44 @@
 ---
-- name: 1. Create directories for config and certs
+- name: 1. Create directory for config and certs
   become: yes
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ postgres_config_path }}/certs"
     state: directory
     mode: '0755'
-  with_items:
-    - "{{ postgres_config_path }}"
-    - "{{ postgres_config_path }}/certs"
 
-- name: 2. Copy SSL public certificate (server.crt)
+- name: 2. Copy SSL certificates with correct permissions
   become: yes
   ansible.builtin.copy:
-    src: "certs/server.crt"
-    dest: "{{ postgres_config_path }}/certs/server.crt"
-    mode: '0644' 
-    owner: 999  
-    group: 999  
-
-- name: 3. Copy SSL private key (server.key) with strict permissions
-  become: yes
-  ansible.builtin.copy:
-    src: "certs/server.key"
-    dest: "{{ postgres_config_path }}/certs/server.key"
-    mode: '0600'
+    src: "{{ item.src }}"
+    dest: "{{ postgres_config_path }}/certs/{{ item.dest }}"
+    mode: "{{ item.mode }}"
     owner: 999
     group: 999
+  with_items:
+    - { src: 'certs/server.crt', dest: 'server.crt', mode: '0644' }
+    - { src: 'certs/server.key', dest: 'server.key', mode: '0600' }
 
-
-- name: 4. Create PostgreSQL config files from templates
+- name: 3. Create SQL file for SSL settings from template
   become: yes
   ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ postgres_config_path }}/{{ item.dest }}"
+    src: "custom-settings.sql.j2"
+    dest: "{{ postgres_config_path }}/custom-settings.sql"
     mode: '0644'
-  with_items:
-    - { src: 'postgresql.conf.j2', dest: 'postgresql.conf' }
-    - { src: 'pg_hba.conf.j2', dest: 'pg_hba.conf' }
 
-- name: 5. Ensure PostgreSQL data volume exists
+# Задача 5 (chown) больше не нужна, так как мы указываем owner/group при копировании
+# Задача 4 (копирование старых конфигов) удалена
+
+- name: 6. Ensure PostgreSQL data volume exists
   community.docker.docker_volume:
     name: "{{ postgres_volume_name }}"
     state: present
 
-- name: 6. Deploy PostgreSQL container via Docker Compose
+- name: 7. Deploy PostgreSQL container
   community.docker.docker_compose_v2:
     project_name: "{{ postgres_project_name }}"
     definition: "{{ lookup('template', 'docker-compose.yml.j2') | from_yaml }}"
     state: present
 
-- name: 7. Configure firewall (UFW)
+- name: 8. Configure firewall (UFW)
   become: yes
-  block:
-    - name: Allow SSH connections (important!)
-      community.general.ufw:
-        rule: allow
-        name: OpenSSH
-
-    - name: Allow PostgreSQL port only from AppSheet IPs
-      community.general.ufw:
-        rule: allow
-        src: "{{ item }}"
-        port: '5432'
-        proto: tcp
-      with_items:
-        - '34.64.0.0/12'
-        - '35.224.0.0/12'
-        - '64.18.0.0/16'
-        - '104.155.128.0/17'
-        - '130.211.0.0/16'
-        # ...и другие IP AppSheet при необходимости
-
-    - name: Enable UFW firewall if it is not active
-      community.general.ufw:
-        state: enabled
+  ansible.builtin.import_tasks: ufw.yml # Вынесем в отдельный файл для чистоты

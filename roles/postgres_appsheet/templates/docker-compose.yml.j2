@@ -13,9 +13,8 @@ services:
       - "{{ postgres_volume_name }}:/var/lib/postgresql/data"
       - "{{ postgres_config_path }}/certs/server.crt:/etc/ssl/certs/server.crt:ro"
       - "{{ postgres_config_path }}/certs/server.key:/etc/ssl/private/server.key:ro"
-      - "{{ postgres_config_path }}/postgresql.conf:/etc/postgresql/postgresql.conf:ro"
-      - "{{ postgres_config_path }}/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro"
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf
+      #  скрипт с настройками - в специальную папку для инициализации
+      - "{{ postgres_config_path }}/custom-settings.sql:/docker-entrypoint-initdb.d/custom-settings.sql:ro"
 
 volumes:
   "{{ postgres_volume_name }}":

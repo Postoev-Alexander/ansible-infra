@@ -21,7 +21,17 @@
     - name: "2. WARNING: This will DESTROY the current database"
       ansible.builtin.pause:
         prompt: "Press Enter to continue and WIPE the '{{ postgres_db_name }}' database, or Ctrl+C to cancel."
-
+    
+    - name: "2a. Forcefully disconnect all users from the database"
+      community.postgresql.postgresql_query:
+        db: postgres  # Подключаемся к стандартной базе 'postgres' для выполнения этой команды
+        query: "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{{ postgres_db_name }}' AND pid <> pg_backend_pid();"
+        login_user: "{{ postgres_db_user }}"
+        login_password: "{{ postgres_db_password }}"
+        login_host: "{{ ansible_host }}"
+        port: 5432
+        ssl_mode: "require"
+    
     - name: "3. Drop the existing database for a clean restore"
       community.postgresql.postgresql_db:
         name: "{{ postgres_db_name }}"

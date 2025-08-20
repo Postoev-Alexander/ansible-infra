@@ -1,4 +1,11 @@
----   
+---
+- name: "Ensure PostgreSQL client tools (psql, pg_dump) are installed on the host"
+  become: yes
+  ansible.builtin.apt:
+    name: postgresql-client
+    state: present
+    update_cache: yes
+    
 - name: 1. Create directory for config and certs
   become: yes
   ansible.builtin.file:

@@ -1,5 +1,5 @@
 ---
-- name: Restore PostgreSQL Database from backup
+- name: Restore PostgreSQL Database using postgresql_db
   hosts: postgres_appsheet
   gather_facts: no
 
@@ -9,14 +9,20 @@
   tasks:
     - name: "Check if the backup file name was provided"
       ansible.builtin.fail:
-        msg: "ERROR: You must specify the backup file. Example: -e 'backup_file=/tmp/ansible_backups/backup.sql'"
+        msg: "ERROR: You must specify the backup file. Example: -e 'backup_file=/tmp/ansible_backups/backup.sql.gz'"
       when: backup_file is not defined
 
-    - name: "1. WARNING: This will DESTROY the current database"
+    - name: "1. Copy the backup file to the remote server"
+      ansible.builtin.copy:
+        src: "{{ backup_file }}"
+        dest: "/tmp/restore_backup.sql.gz" # Временное имя на сервере
+        mode: '0600'
+
+    - name: "2. WARNING: This will DESTROY the current database"
       ansible.builtin.pause:
         prompt: "Press Enter to continue and WIPE the '{{ postgres_db_name }}' database, or Ctrl+C to cancel."
 
-    - name: "2. Drop the existing database to ensure a clean restore"
+    - name: "3. Drop the existing database for a clean restore"
       community.postgresql.postgresql_db:
         name: "{{ postgres_db_name }}"
         state: absent
@@ -26,7 +32,7 @@
         port: 5432
         ssl_mode: "require"
 
-    - name: "3. Create a new, empty database"
+    - name: "4. Create a new, empty database"
       community.postgresql.postgresql_db:
         name: "{{ postgres_db_name }}"
         state: present
@@ -37,15 +43,21 @@
         port: 5432
         ssl_mode: "require"
 
-    - name: "4. Restore the database from the backup file"
-      community.postgresql.postgresql_script:
-        db: "{{ postgres_db_name }}"
-        path: "{{ backup_file }}" # Путь к файлу на УПРАВЛЯЮЩЕМ сервере
+    - name: "5. Restore the database from the backup file"
+      community.postgresql.postgresql_db:
+        name: "{{ postgres_db_name }}"
+        state: restore
+        target: "/tmp/restore_backup.sql.gz" # Путь к файлу на УДАЛЕННОМ сервере
         login_user: "{{ postgres_db_user }}"
         login_password: "{{ postgres_db_password }}"
         login_host: "{{ ansible_host }}"
         port: 5432
         ssl_mode: "require"
+
+    - name: "6. Clean up the backup file from the DB server"
+      ansible.builtin.file:
+        path: "/tmp/restore_backup.sql.gz"
+        state: absent
 
     - name: "SUCCESS: Restore is complete!"
       ansible.builtin.debug:

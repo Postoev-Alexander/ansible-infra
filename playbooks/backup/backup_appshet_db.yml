@@ -1,15 +1,14 @@
 ---
-- name: Backup PostgreSQL Database
+- name: Backup PostgreSQL Database using postgresql_db
   hosts: postgres_appsheet
   gather_facts: no
 
   vars_files:
-    # Указываем путь к вашему зашифрованному файлу с переменными
     - group_vars/postgres_appsheet/postgres_appsheet.yml
 
   vars:
     local_backup_path: "/tmp/ansible_backups"
-    backup_filename: "backup_{{ postgres_db_name }}_{{ ansible_date_time.iso8601_basic_short }}.sql"
+    backup_filename: "backup_{{ postgres_db_name }}_{{ ansible_date_time.iso8601_basic_short }}.sql.gz"
 
   tasks:
     - name: "1. Create local backup directory on Ansible host"
@@ -19,17 +18,18 @@
         mode: '0700'
       delegate_to: localhost
 
-    - name: "2. Dump the database to a file on the remote server"
-      community.postgresql.postgresql_dump:
-        db: "{{ postgres_db_name }}"
-        dest: "/tmp/{{ backup_filename }}"
+    - name: "2. Dump the database to a compressed file on the remote server"
+      community.postgresql.postgresql_db:
+        name: "{{ postgres_db_name }}"
+        state: dump
+        target: "/tmp/{{ backup_filename }}" # Модуль сам определит компрессию по расширению .gz
         login_user: "{{ postgres_db_user }}"
         login_password: "{{ postgres_db_password }}"
-        login_host: "{{ ansible_host }}" # IP-адрес сервера из inventory
+        login_host: "{{ ansible_host }}"
         port: 5432
-        ssl_mode: "require" # Указываем, что нужно использовать SSL
+        ssl_mode: "require"
 
-    - name: "3. Fetch the backup file from the DB server to the Ansible host"
+    - name: "3. Fetch the backup file to the Ansible host"
       ansible.builtin.fetch:
         src: "/tmp/{{ backup_filename }}"
         dest: "{{ local_backup_path }}/"

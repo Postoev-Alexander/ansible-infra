@@ -1,4 +1,4 @@
 - hosts: postgres_appsheet
   roles:
-    - docker_compose_2
+    - docker_compose
     - postgres_appsheet

@@ -1,11 +1,4 @@
----
-- name: "Ensure Python dependencies for PostgreSQL are installed"
-  become: yes
-  ansible.builtin.apt:
-    name: python3-psycopg2
-    state: present
-    update_cache: yes
-      
+---   
 - name: 1. Create directory for config and certs
   become: yes
   ansible.builtin.file:

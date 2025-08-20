@@ -1,4 +1,11 @@
 ---
+- name: "Ensure Python dependencies for PostgreSQL are installed"
+  become: yes
+  ansible.builtin.apt:
+    name: python3-psycopg2
+    state: present
+    update_cache: yes
+    
 - name: "Ensure PostgreSQL client tools (psql, pg_dump) are installed on the host"
   become: yes
   ansible.builtin.apt:

@@ -1,0 +1,52 @@
+---
+- name: Restore PostgreSQL Database from backup
+  hosts: postgres_appsheet
+  gather_facts: no
+
+  vars_files:
+    - group_vars/postgres_appsheet/postgres_appsheet.yml
+
+  tasks:
+    - name: "Check if the backup file name was provided"
+      ansible.builtin.fail:
+        msg: "ERROR: You must specify the backup file. Example: -e 'backup_file=/tmp/ansible_backups/backup.sql'"
+      when: backup_file is not defined
+
+    - name: "1. WARNING: This will DESTROY the current database"
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue and WIPE the '{{ postgres_db_name }}' database, or Ctrl+C to cancel."
+
+    - name: "2. Drop the existing database to ensure a clean restore"
+      community.postgresql.postgresql_db:
+        name: "{{ postgres_db_name }}"
+        state: absent
+        login_user: "{{ postgres_db_user }}"
+        login_password: "{{ postgres_db_password }}"
+        login_host: "{{ ansible_host }}"
+        port: 5432
+        ssl_mode: "require"
+
+    - name: "3. Create a new, empty database"
+      community.postgresql.postgresql_db:
+        name: "{{ postgres_db_name }}"
+        state: present
+        owner: "{{ postgres_db_user }}"
+        login_user: "{{ postgres_db_user }}"
+        login_password: "{{ postgres_db_password }}"
+        login_host: "{{ ansible_host }}"
+        port: 5432
+        ssl_mode: "require"
+
+    - name: "4. Restore the database from the backup file"
+      community.postgresql.postgresql_script:
+        db: "{{ postgres_db_name }}"
+        path: "{{ backup_file }}" # Путь к файлу на УПРАВЛЯЮЩЕМ сервере
+        login_user: "{{ postgres_db_user }}"
+        login_password: "{{ postgres_db_password }}"
+        login_host: "{{ ansible_host }}"
+        port: 5432
+        ssl_mode: "require"
+
+    - name: "SUCCESS: Restore is complete!"
+      ansible.builtin.debug:
+        msg: "Database '{{ postgres_db_name }}' has been restored from '{{ backup_file }}'."

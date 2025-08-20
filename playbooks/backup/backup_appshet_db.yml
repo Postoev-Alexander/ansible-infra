@@ -18,16 +18,23 @@
         mode: '0700'
       delegate_to: localhost
 
-    - name: "2. Dump the database to a compressed file on the remote server"
-      community.postgresql.postgresql_db:
-        name: "{{ postgres_db_name }}"
-        state: dump
-        target: "/tmp/{{ backup_filename }}" # Модуль сам определит компрессию по расширению .gz
-        login_user: "{{ postgres_db_user }}"
-        login_password: "{{ postgres_db_password }}"
-        login_host: "{{ ansible_host }}"
-        port: 5432
-        ssl_mode: "require"
+#    - name: "2. Dump the database to a compressed file on the remote server"
+#      community.postgresql.postgresql_db:
+#        name: "{{ postgres_db_name }}"
+#        state: dump
+#        target: "/tmp/{{ backup_filename }}" # Модуль сам определит компрессию по расширению .gz
+#        login_user: "{{ postgres_db_user }}"
+#        login_password: "{{ postgres_db_password }}"
+#        login_host: "{{ ansible_host }}"
+#        port: 5432
+#        ssl_mode: "require"
+        
+    - name: "2. Dump the database using docker exec to match versions"
+      become: yes
+      ansible.builtin.shell:
+        cmd: "docker exec {{ postgres_project_name }} pg_dump -U {{ postgres_db_user }} -d {{ postgres_db_name }} | gzip > /tmp/{{ backup_filename }}"
+      environment:
+        PGPASSWORD: "{{ postgres_db_password }}" # Безопасная передача пароля
 
     - name: "3. Fetch the backup file to the Ansible host"
       ansible.builtin.fetch:

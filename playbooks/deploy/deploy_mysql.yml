@@ -1,0 +1,6 @@
+# deploy_mysql.yml
+---
+- hosts: mysql_appsheet
+  roles:
+    - docker_compose # Сначала убедимся, что Docker установлен
+    - mysql_appsheet   # Затем развернем MySQL

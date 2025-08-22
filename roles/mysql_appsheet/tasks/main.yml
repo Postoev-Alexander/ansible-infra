@@ -1,0 +1,36 @@
+---
+- name: 1. Ensure MySQL data volume exists
+  community.docker.docker_volume:
+    name: "{{ mysql_volume_name }}"
+    state: present
+
+- name: 2. Deploy MySQL container via Docker Compose
+  community.docker.docker_compose_v2:
+    project_name: "{{ mysql_project_name }}"
+    definition: "{{ lookup('template', 'docker-compose.mysql.yml.j2') | from_yaml }}"
+    state: present
+
+- name: 3. Configure firewall (UFW) for Google IPs
+  become: yes
+  block:
+    - name: Allow SSH connections (important!)
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: Allow MySQL port only from Google IPs
+      community.general.ufw:
+        rule: allow
+        src: "{{ item }}"
+        port: '3306'
+        proto: tcp
+      with_items: # Основные подсети Google
+        - '64.233.160.0/19'
+        - '66.102.0.0/20'
+        - '66.249.80.0/20'
+        - '72.14.192.0/18'
+        - '74.125.0.0/16'
+
+    - name: Enable UFW firewall if it is not active
+      community.general.ufw:
+        state: enabled

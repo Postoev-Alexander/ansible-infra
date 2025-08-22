@@ -1,0 +1,7 @@
+# group_vars/mysql_appsheet/mysql_vars.yml
+mysql_project_name: "mysql-appsheet"
+mysql_volume_name: "mysql_appsheet_data"
+mysql_db_name: "appsheet_db"
+mysql_user: "appsheet_user"
+mysql_password: "YourSuperStrongPassword123!" # Придумайте или оставьте старый
+mysql_root_password: "AnotherEvenStrongerPassword456!" # Придумайте отдельный пароль для root

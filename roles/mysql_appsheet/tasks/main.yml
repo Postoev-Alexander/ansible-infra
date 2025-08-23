@@ -17,20 +17,31 @@
       community.general.ufw:
         rule: allow
         name: OpenSSH
+        
+- name: 4. Ensure the database user can connect from any host
+  community.mysql.mysql_user:
+    name: "{{ mysql_user }}"
+    host: '%' # <-- Это разрешает подключение с любого IP-адреса
+    password: "{{ mysql_password }}"
+    priv: "{{ mysql_db_name }}.*:ALL,GRANT" # Даем полные права на базу
+    state: present
+    login_host: "{{ ansible_host }}"
+    login_user: "root"
+    login_password: "{{ mysql_root_password }}"
 
-    - name: Allow MySQL port only from Google IPs
-      community.general.ufw:
-        rule: allow
-        src: "{{ item }}"
-        port: '3306'
-        proto: tcp
-      with_items: # Основные подсети Google
-        - '64.233.160.0/19'
-        - '66.102.0.0/20'
-        - '66.249.80.0/20'
-        - '72.14.192.0/18'
-        - '74.125.0.0/16'
+- name: Allow MySQL port only from Google IPs
+  community.general.ufw:
+     rule: allow
+     src: "{{ item }}"
+     port: '3306'
+     proto: tcp
+     with_items: # Основные подсети Google
+     - '64.233.160.0/19'
+     - '66.102.0.0/20'
+     - '66.249.80.0/20'
+     - '72.14.192.0/18'
+     - '74.125.0.0/16'
 
-    - name: Enable UFW firewall if it is not active
-      community.general.ufw:
-        state: enabled
+- name: Enable UFW firewall if it is not active
+  community.general.ufw:
+     state: enabled

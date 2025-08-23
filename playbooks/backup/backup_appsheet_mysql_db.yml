@@ -10,6 +10,14 @@
     local_backup_path: "/tmp/ansible_backups"
     backup_filename: "backup_{{ mysql_db_name }}_{{ ansible_date_time.iso8601_basic_short }}.sql.gz"
 
+  pre_tasks:
+    - name: "Ensure Python dependencies for MySQL are installed"
+      become: yes
+      ansible.builtin.apt:
+        name: python3-pymysql
+        state: present
+        update_cache: yes
+      
   tasks:
     - name: "Gather current date and time"
       ansible.builtin.setup:

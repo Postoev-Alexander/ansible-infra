@@ -1,0 +1,30 @@
+---
+- name: Backup MySQL Database to /tmp
+  hosts: mysql_appsheet
+  gather_facts: no
+
+  # Указываем, откуда брать переменные (пароли, имена и т.д.)
+  vars_files:
+    - group_vars/mysql_appsheet/mysql_appsheet.yml
+
+  vars:
+    # Создаем имя файла с текущей датой и временем
+    backup_filename: "backup_{{ mysql_db_name }}_{{ ansible_date_time.iso8601_basic_short }}.sql.gz"
+
+  tasks:
+    - name: "Gather current date and time"
+      ansible.builtin.setup:
+        filter:
+          - ansible_date_time
+
+    - name: "Create a compressed backup of the database in /tmp"
+      community.mysql.mysql_dump:
+        login_host: "{{ ansible_host }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        database: "{{ mysql_db_name }}"
+        dest: "/tmp/{{ backup_filename }}" # Указываем путь для сохранения
+
+    - name: "SUCCESS: Backup is complete!"
+      ansible.builtin.debug:
+        msg: "Backup file has been created on the server at: /tmp/{{ backup_filename }}"

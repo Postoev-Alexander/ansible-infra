@@ -1,0 +1,73 @@
+---
+- name: Restore MySQL Database from backup
+  hosts: mysql_appsheet
+  gather_facts: no
+
+  # Указываем, откуда брать переменные (пароли, имена и т.д.)
+  vars_files:
+    - group_vars/mysql_appsheet/mysql_appsheet.yml
+
+  pre_tasks:
+    - name: "Ensure Python dependencies for MySQL are installed"
+      become: yes
+      ansible.builtin.apt:
+        name: python3-pymysql
+        state: present
+        update_cache: yes
+
+    - name: "Ensure MySQL client tools (mysql) are installed"
+      become: yes
+      ansible.builtin.apt:
+        name: mysql-client
+        state: present
+
+  tasks:
+    - name: "Check if backup_file variable is provided"
+      ansible.builtin.fail:
+        msg: "ОШИБКА: Вы должны указать путь к файлу бэкапа. Пример: -e 'backup_file=/tmp/ansible_backups/backup.sql.gz'"
+      when: backup_file is not defined
+
+    - name: "1. Copy the backup file to the remote server's /tmp directory"
+      ansible.builtin.copy:
+        src: "{{ backup_file }}"
+        dest: "/tmp/restore_backup.sql.gz" # Временное имя на сервере
+        mode: '0600'
+
+    - name: "2. WARNING: This will DESTROY the current database"
+      ansible.builtin.pause:
+        prompt: "Нажмите Enter, чтобы ПОЛНОСТЬЮ УДАЛИТЬ базу данных '{{ mysql_db_name }}', или Ctrl+C для отмены."
+
+    - name: "3. Drop the existing database for a clean restore"
+      community.mysql.mysql_db:
+        name: "{{ mysql_db_name }}"
+        state: absent
+        login_host: "{{ ansible_host }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+
+    - name: "4. Create a new, empty database"
+      community.mysql.mysql_db:
+        name: "{{ mysql_db_name }}"
+        state: present
+        owner: "{{ mysql_user }}" # Устанавливаем правильного владельца
+        login_host: "{{ ansible_host }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+
+    - name: "5. Restore the database from the backup file"
+      community.mysql.mysql_db:
+        name: "{{ mysql_db_name }}"
+        state: restore
+        target: "/tmp/restore_backup.sql.gz" # Путь к файлу на УДАЛЕННОМ сервере
+        login_host: "{{ ansible_host }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+
+    - name: "6. Clean up the backup file from the DB server"
+      ansible.builtin.file:
+        path: "/tmp/restore_backup.sql.gz"
+        state: absent
+
+    - name: "SUCCESS: Restore is complete!"
+      ansible.builtin.debug:
+        msg: "База данных '{{ mysql_db_name }}' была успешно восстановлена из файла '{{ backup_file }}'."

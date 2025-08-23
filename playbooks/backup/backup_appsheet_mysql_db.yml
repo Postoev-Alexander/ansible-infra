@@ -17,6 +17,12 @@
         name: python3-pymysql
         state: present
         update_cache: yes
+        
+    - name: "Ensure MySQL client tools (mysqldump) are installed" # <-- ДОБАВЬТЕ ЭТУ ЗАДАЧУ
+      become: yes
+      ansible.builtin.apt:
+        name: mysql-client
+        state: present
       
   tasks:
     - name: "Gather current date and time"

@@ -49,7 +49,6 @@
       community.mysql.mysql_db:
         name: "{{ mysql_db_name }}"
         state: present
-        owner: "{{ mysql_user }}" # Устанавливаем правильного владельца
         login_host: "{{ ansible_host }}"
         login_user: "{{ mysql_user }}"
         login_password: "{{ mysql_password }}"

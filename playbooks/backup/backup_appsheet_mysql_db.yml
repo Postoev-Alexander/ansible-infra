@@ -8,7 +8,7 @@
 
   vars:
     local_backup_path: "/tmp/ansible_backups"
-    backup_filename: "backup_{{ mysql_db_name }}_{{ ansible_date_time.iso8601_basic_short }}.sql.gz"
+    backup_filename: "backup_appsheet_mysql_db{{ mysql_db_name }}_{{ ansible_date_time.iso8601_basic_short }}.sql.gz"
 
   pre_tasks:
     - name: "Ensure Python dependencies for MySQL are installed"

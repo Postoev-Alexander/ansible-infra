@@ -56,7 +56,7 @@
     - name: "5. Restore the database from the backup file"
       community.mysql.mysql_db:
         name: "{{ mysql_db_name }}"
-        state: restore
+        state: import
         target: "/tmp/restore_backup.sql.gz" # Путь к файлу на УДАЛЕННОМ сервере
         login_host: "{{ ansible_host }}"
         login_user: "{{ mysql_user }}"

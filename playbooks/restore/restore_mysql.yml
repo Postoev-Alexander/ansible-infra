@@ -59,8 +59,8 @@
         state: import
         target: "/tmp/restore_backup.sql.gz" # Путь к файлу на УДАЛЕННОМ сервере
         login_host: "{{ ansible_host }}"
-        login_user: "{{ mysql_user }}"
-        login_password: "{{ mysql_password }}"
+        login_user: "root"
+        login_password: "{{ mysql_root_password }}"
 
     - name: "6. Clean up the backup file from the DB server"
       ansible.builtin.file:

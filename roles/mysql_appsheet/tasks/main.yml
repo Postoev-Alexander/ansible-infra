@@ -19,15 +19,12 @@
         name: OpenSSH
         
 - name: 4. Ensure the database user can connect from any host
-  community.mysql.mysql_user:
-    name: "{{ mysql_user }}"
-    host: '%' # <-- Это разрешает подключение с любого IP-адреса
-    password: "{{ mysql_password }}"
-    priv: "{{ mysql_db_name }}.*:ALL,GRANT" # Даем полные права на базу
-    state: present
-    login_host: "{{ ansible_host }}"
-    login_user: "root"
-    login_password: "{{ mysql_root_password }}"
+  become: yes
+  ansible.builtin.shell:
+    cmd: "docker exec {{ mysql_project_name }} mysql -e \"GRANT ALL PRIVILEGES ON {{ mysql_db_name }}.* TO '{{ mysql_user }}'@'%' WITH GRANT OPTION;\""
+  environment:
+    # Пароль root передается в команду mysql через переменную окружения
+    MYSQL_PWD: "{{ mysql_root_password }}"
 
 - name: Allow MySQL port only from Google IPs
   community.general.ufw:

@@ -37,15 +37,30 @@
       ansible.builtin.pause:
         prompt: "Нажмите Enter, чтобы ПОЛНОСТЬЮ УДАЛИТЬ базу данных '{{ mysql_db_name }}', или Ctrl+C для отмены."
 
-    - name: "3. Drop the existing database for a clean restore"
+    - name: "3. WARNING: This will DESTROY the current database"
+      ansible.builtin.pause:
+        prompt: "Нажмите Enter, чтобы ПОЛНОСТЬЮ УДАЛИТЬ базу данных '{{ mysql_db_name }}', или Ctrl+C для отмены."
+
+    - name: "4. Ensure the database user has all privileges"
+      community.mysql.mysql_user:
+        name: "{{ mysql_user }}"
+        host: '%' # Разрешить этому пользователю подключаться отовсюду
+        password: "{{ mysql_password }}"
+        priv: "*.*:ALL,GRANT" # Дать все привилегии на все базы данных, включая право выдавать права
+        state: present
+        login_host: "{{ ansible_host }}"
+        login_user: "root"
+        login_password: "{{ mysql_root_password }}"
+
+    - name: "5. Drop the existing database"
       community.mysql.mysql_db:
         name: "{{ mysql_db_name }}"
         state: absent
         login_host: "{{ ansible_host }}"
-        login_user: "{{ mysql_user }}"
+        login_user: "{{ mysql_user }}" # Теперь у этого пользователя есть права на это действие
         login_password: "{{ mysql_password }}"
 
-    - name: "4. Create a new, empty database"
+    - name: "6. Create a new, empty database"
       community.mysql.mysql_db:
         name: "{{ mysql_db_name }}"
         state: present
@@ -53,14 +68,14 @@
         login_user: "{{ mysql_user }}"
         login_password: "{{ mysql_password }}"
 
-    - name: "5. Restore the database from the backup file"
+    - name: "7. Restore the database from the backup file"
       community.mysql.mysql_db:
         name: "{{ mysql_db_name }}"
         state: import
-        target: "/tmp/restore_backup.sql.gz" # Путь к файлу на УДАЛЕННОМ сервере
+        target: "/tmp/restore_backup.sql.gz"
         login_host: "{{ ansible_host }}"
-        login_user: "root"
-        login_password: "{{ mysql_root_password }}"
+        login_user: "{{ mysql_user }}" # Восстанавливаем от имени пользователя приложения
+        login_password: "{{ mysql_password }}"
 
     - name: "6. Clean up the backup file from the DB server"
       ansible.builtin.file:

@@ -3,7 +3,7 @@
   ansible.builtin.debug:
     msg: "Value for project_name is '{{ project_name | default('!!! UNDEFINED !!!') }}'"
   run_once: true
-  
+# 1
 - name: Create persistent volume directories if they don't exist
   ansible.builtin.file:
     path: "/var/lib/docker/volumes/{{ item }}"

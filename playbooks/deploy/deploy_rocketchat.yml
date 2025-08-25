@@ -3,7 +3,6 @@
   hosts: rocketchat # Указываем группу из hosts.ini
   become: yes
   roles:
-    - docker_compose
     - rocketchat
   tags:
     - rocketchat

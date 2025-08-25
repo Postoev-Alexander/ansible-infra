@@ -1,21 +1,28 @@
----
+- name: Определить имя файла для бэкапа
+  set_fact:
+    backup_filename: "/tmp/backup-{{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+
 - name: Создать архив данных
   community.general.archive:
     path:
       - /var/lib/docker/volumes/n8n_data
       - /var/lib/docker/volumes/traefik_data
-    dest: "/tmp/backup-{{ inventory_hostname }}-{{ ansible_date_time.iso8601 | regex_replace(':', '_') }}.tar.gz"
+    dest: "{{ backup_filename }}" # Используем созданную переменную
     format: gz
     owner: root
     group: root
     mode: '0600'
+  register: backup_archive_result # Регистрируем результат задачи
 
 - name: Загрузить резервную копию на Google Drive через rclone
-  shell: "rclone copy /tmp/backup-{{ inventory_hostname }}-{{ ansible_date_time.iso8601 | regex_replace(':', '_') }}.tar.gz gdrive03:backup_services/n8n/"
+  shell: "rclone copy {{ backup_archive_result.dest }} gdrive03:backup_services/n8n/"
   args:
     executable: /bin/bash
+  when: backup_archive_result.changed # Выполнять, только если архив был успешно создан
+  changed_when: false # Команда rclone не меняет состояние системы, только загружает файл
 
 - name: Удалить локальный архив после загрузки
   file:
-    path: "/tmp/backup-{{ inventory_hostname }}-{{ ansible_date_time.iso8601 | regex_replace(':', '_') }}.tar.gz"
+    path: "{{ backup_archive_result.dest }}" # Используем путь из результата
     state: absent
+  when: backup_archive_result.changed # Удалять, только если архив был создан

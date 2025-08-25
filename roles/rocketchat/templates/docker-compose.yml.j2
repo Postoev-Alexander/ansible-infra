@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:{{ mongodb_version }}
+    container_name: {{ project_name }}_mongo
+    restart: unless-stopped
+    command: mongod --replSet {{ mongo_replicaset_name }} --oplogSize 128
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME={{ mongo_user }}
+      - MONGO_INITDB_ROOT_PASSWORD={{ mongo_password }}
+    networks:
+      - rocketchat_internal
+
+  rocketchat:
+    image: rocketchat/rocket.chat:{{ rocketchat_version }}
+    container_name: {{ project_name }}_app
+    restart: unless-stopped
+    command: >
+      bash -c
+        "for i in `seq 1 30`; do
+          node main.js && exit 0 || sleep 5;
+        done; exit 1"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rocketchat.rule=Host(`{{ rocketchat_subdomain }}.{{ main_domain }}`)"
+      - "traefik.http.routers.rocketchat.entrypoints=web,websecure"
+      - "traefik.http.routers.rocketchat.tls=true"
+      - "traefik.http.routers.rocketchat.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
+      # Middlewares для безопасности, как в вашем примере
+      - "traefik.http.middlewares.rc-headers.headers.SSLRedirect=true"
+      - "traefik.http.middlewares.rc-headers.headers.STSSeconds=315360000"
+      - "traefik.http.middlewares.rc-headers.headers.browserXSSFilter=true"
+      - "traefik.http.middlewares.rc-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.routers.rocketchat.middlewares=rc-headers@docker"
+    environment:
+      - PORT=3000
+      - ROOT_URL=https://{{ rocketchat_subdomain }}.{{ main_domain }}
+      - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
+      - MONGO_OPLOG_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/local?replicaSet={{ mongo_replicaset_name }}
+      # Полезная опция для загрузки файлов
+      - FileUpload_Storage_Type=GridFS
+    depends_on:
+      - mongo
+    volumes:
+      - rocketchat_uploads:/app/uploads
+    networks:
+      - rocketchat_internal
+      - {{ traefik_docker_network_name }}
+
+  # Этот контейнер запускается, инициализирует Replica Set и завершает работу.
+  mongo-init-replica:
+    image: mongo:{{ mongodb_version }}
+    container_name: {{ project_name }}_mongo_init
+    command: >
+      bash -c
+        "sleep 10 && mongosh --host mongo:27017 -u {{ mongo_user }} -p {{ mongo_password }} --authenticationDatabase admin --eval \"
+        rs.initiate({ _id: '{{ mongo_replicaset_name }}', members: [ { _id: 0, host: 'mongo:27017' } ] });\""
+    depends_on:
+      - mongo
+    networks:
+      - rocketchat_internal
+
+volumes:
+  mongodb_data:
+    name: {{ project_name }}_mongodb_data
+  rocketchat_uploads:
+    name: {{ project_name }}_uploads_data
+
+networks:
+  rocketchat_internal:
+    internal: true
+  {{ traefik_docker_network_name }}:
+    external: true

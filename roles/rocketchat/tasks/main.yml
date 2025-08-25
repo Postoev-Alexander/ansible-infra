@@ -1,0 +1,28 @@
+---
+- name: Create persistent volume directories if they don't exist
+  ansible.builtin.file:
+    path: "/var/lib/docker/volumes/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ project_name }}_mongodb_data"
+    - "{{ project_name }}_uploads_data"
+
+- name: Deploy Rocket.Chat stack
+  community.docker.docker_compose_v2:
+    project_name: "{{ project_name }}"
+    definition: "{{ lookup('ansible.builtin.template', 'docker-compose.yml.j2') | from_yaml }}"
+    state: present
+    pull: always # Рекомендуется для обновления образов
+  register: compose_result
+
+# Эта задача выполнится только один раз, при первом создании контейнеров.
+- name: Pause for replica set initialization on first run
+  ansible.builtin.pause:
+    seconds: 20
+    prompt: "Waiting 20 seconds for MongoDB replica set to initialize on the first run..."
+  when: compose_result.actions | map(attribute='action') | select('equalto', 'create') | list | length > 0
+
+- name: Debug Rocket.Chat deployment result
+  ansible.builtin.debug:
+    msg: "Rocket.Chat deployment finished. It should be available at https://{{ rocketchat_subdomain }}.{{ main_domain }}"

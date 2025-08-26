@@ -1,58 +1,19 @@
 ---
-- name: Create persistent volume directories if they don't exist
-  ansible.builtin.file:
-    path: "/var/lib/docker/volumes/{{ item }}"
-    state: directory
-    mode: '0755'
-  loop:
-    - "{{ project_name }}_mongodb_data"
-    - "{{ project_name }}_uploads_data"
-
-- name: Create local directory for secrets
-  ansible.builtin.file:
-    path: "./secrets/{{ project_name }}"
-    state: directory
-  delegate_to: localhost
-  run_once: true
-
-- name: Generate MongoDB keyfile if it does not exist
-  ansible.builtin.shell: "openssl rand -base64 756 > ./secrets/{{ project_name }}/mongo.key"
-  args:
-    creates: "./secrets/{{ project_name }}/mongo.key"
-  delegate_to: localhost
-  run_once: true
-
-- name: Create directory for MongoDB keyfile on remote host
-  ansible.builtin.file:
-    path: "/opt/rocketchat/mongo_key"
-    state: directory
-    mode: '0755'
-
-- name: Copy MongoDB keyfile to remote host
-  ansible.builtin.copy:
-    src: "./secrets/{{ project_name }}/mongo.key"
-    dest: "/opt/rocketchat/mongo_key/mongo.key"
-    owner: 999  # User ID for mongodb inside the container
-    group: 999  # Group ID for mongodb inside the container
-    mode: '0400' # Только чтение для владельца
-    
 - name: Deploy Rocket.Chat stack
   community.docker.docker_compose_v2:
     project_name: "{{ project_name }}"
     definition: "{{ lookup('ansible.builtin.template', 'docker-compose.yml.j2') | from_yaml }}"
     state: present
-    pull: always
+    pull: always # Рекомендуется для обновления образов
   register: compose_result
 
-# Эта задача выполнится только если docker-compose что-то изменил (например, создал контейнеры).
+# Простая пауза при первом запуске, чтобы дать время на инициализацию
 - name: Pause for replica set initialization on first run
   ansible.builtin.pause:
-    seconds: 20
-    prompt: "Waiting 20 seconds for services to initialize after changes..."
+    seconds: 45
+    prompt: "Waiting 45 seconds for Rocket.Chat to initialize MongoDB replica set on the first run..."
   when: compose_result.changed
 
 - name: Debug Rocket.Chat deployment result
   ansible.builtin.debug:
     msg: "Rocket.Chat deployment finished. It should be available at https://{{ rocketchat_subdomain }}.{{ main_domain }}"
-    
-    

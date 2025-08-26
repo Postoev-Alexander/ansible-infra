@@ -10,6 +10,14 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME={{ mongo_user }}
       - MONGO_INITDB_ROOT_PASSWORD={{ mongo_password }}
+    # Healthcheck дожидается, пока MongoDB будет готов принимать команды
+    healthcheck:
+      test: |
+        mongosh --host 127.0.0.1 -u {{ mongo_user }} -p {{ mongo_password }} --authenticationDatabase admin --eval "db.adminCommand('ping')" || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
     networks:
       - rocketchat_internal
 
@@ -17,16 +25,8 @@ services:
     image: rocketchat/rocket.chat:{{ rocketchat_version }}
     container_name: {{ project_name }}_app
     restart: unless-stopped
-    # ИЗМЕНЕНИЕ: bash -> sh
-    entrypoint: >
-      sh -c
-        "for i in `seq 1 30`; do
-          echo \"Attempt $$i to connect to MongoDB...\";
-          mongosh --host mongo:27017 --eval 'quit(0)' > /dev/null 2>&1 && break;
-          sleep 5;
-        done;
-        echo \"MongoDB is ready. Starting Rocket.Chat...\";
-        exec node main.js"
+    # Убираем entrypoint, т.к. образ сам умеет запускать `node main.js`
+    # command: ["node", "main.js"] # Это команда по умолчанию, ее можно не указывать
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.rocketchat.rule=Host(`{{ rocketchat_subdomain }}.{{ main_domain }}`)"
@@ -45,8 +45,10 @@ services:
       - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
       - MONGO_OPLOG_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/local?replicaSet={{ mongo_replicaset_name }}
       - FileUpload_Storage_Type=GridFS
+    # Теперь Rocket.Chat будет ждать, пока healthcheck MongoDB не станет 'healthy'
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     volumes:
       - rocketchat_uploads:/app/uploads
     networks:

@@ -5,9 +5,12 @@ services:
     image: mongo:{{ mongodb_version }}
     container_name: {{ project_name }}_mongo
     restart: unless-stopped
-    command: mongod --replSet {{ mongo_replicaset_name }} --oplogSize 128
+    # Добавляем --keyFile и --auth для безопасной репликации
+    command: mongod --replSet {{ mongo_replicaset_name }} --oplogSize 128 --keyFile /etc/mongo/mongo.key --auth
     volumes:
       - mongodb_data:/data/db
+      # Пробрасываем ключ-файл с хоста внутрь контейнера
+      - /opt/rocketchat/mongo_key/mongo.key:/etc/mongo/mongo.key:ro
     environment:
       - MONGO_INITDB_ROOT_USERNAME={{ mongo_user }}
       - MONGO_INITDB_ROOT_PASSWORD={{ mongo_password }}
@@ -18,11 +21,16 @@ services:
     image: rocketchat/rocket.chat:{{ rocketchat_version }}
     container_name: {{ project_name }}_app
     restart: unless-stopped
-    command: >
+    # ЗАМЕНЯЕМ 'command' НА 'entrypoint'
+    entrypoint: >
       bash -c
         "for i in `seq 1 30`; do
-          node main.js && exit 0 || sleep 5;
-        done; exit 1"
+          echo \"Attempt $$i to connect to MongoDB...\";
+          mongosh --host mongo:27017 --eval 'quit(0)' > /dev/null 2>&1 && break;
+          sleep 5;
+        done;
+        echo \"MongoDB is ready. Starting Rocket.Chat...\";
+        exec node main.js"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.rocketchat.rule=Host(`{{ rocketchat_subdomain }}.{{ main_domain }}`)"
@@ -30,7 +38,6 @@ services:
       - "traefik.http.routers.rocketchat.tls=true"
       - "traefik.http.routers.rocketchat.tls.certresolver=mytlschallenge"
       - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
-      # Middlewares для безопасности, как в вашем примере
       - "traefik.http.middlewares.rc-headers.headers.SSLRedirect=true"
       - "traefik.http.middlewares.rc-headers.headers.STSSeconds=315360000"
       - "traefik.http.middlewares.rc-headers.headers.browserXSSFilter=true"
@@ -41,7 +48,6 @@ services:
       - ROOT_URL=https://{{ rocketchat_subdomain }}.{{ main_domain }}
       - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
       - MONGO_OPLOG_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/local?replicaSet={{ mongo_replicaset_name }}
-      # Полезная опция для загрузки файлов
       - FileUpload_Storage_Type=GridFS
     depends_on:
       - mongo
@@ -51,7 +57,6 @@ services:
       - rocketchat_internal
       - {{ traefik_docker_network_name }}
 
-  # Этот контейнер запускается, инициализирует Replica Set и завершает работу.
   mongo-init-replica:
     image: mongo:{{ mongodb_version }}
     container_name: {{ project_name }}_mongo_init

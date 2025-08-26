@@ -16,7 +16,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 15
-      ## We increase this to give the replica set more time to initialize ##
       start_period: 60s
     networks:
       - rocketchat_internal
@@ -36,6 +35,7 @@ services:
       - PORT=3000
       - ROOT_URL=https://{{ rocketchat_subdomain }}.{{ main_domain }}
       - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password | urlencode }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
+      # Мы убрали REPLICA_SET_INIT и вернули отдельный контейнер для инициализации
       - FileUpload_Storage_Type=GridFS
     depends_on:
       mongo:
@@ -46,11 +46,47 @@ services:
       - rocketchat_internal
       - {{ traefik_docker_network_name }}
 
-  ## We bring back this container to reliably initialize the replica set ##
+  # --- ФИНАЛЬНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
   mongo-init-replica:
     image: mongo:{{ mongodb_version }}
     container_name: {{ project_name }}_mongo_init
-    command: >
-      sh -c
-        "sleep 30 && mongosh --host mongo:27017 -u {{ mongo_user }} -p '{{ mongo_password }}' --authenticationDatabase admin --eval \"
-        rs.initiate({ _id: '{{ mongo_replicaset_name }}', members: [ { _id: 0, host: 'mongo:270
+    # Используем формат списка для команды - это самый надежный способ
+    command:
+      - sh
+      - -c
+      - |
+        echo "Waiting 30s for MongoDB to be ready before initiating replica set..."
+        sleep 30
+        echo "Initiating replica set..."
+        mongosh --host mongo:27017 -u {{ mongo_user }} -p '{{ mongo_password }}' --authenticationDatabase admin --eval '
+          try {
+            rs.initiate({
+              _id: "{{ mongo_replicaset_name }}",
+              members: [ { _id: 0, host: "mongo:27017" } ]
+            });
+            print("Replica set initiated.");
+          } catch (e) {
+            if (e.codeName === "AlreadyInitialized") {
+              print("Replica set already initiated.");
+            } else {
+              printjson(e);
+              quit(1);
+            }
+          }
+        '
+    depends_on:
+      - mongo
+    networks:
+      - rocketchat_internal
+
+volumes:
+  mongodb_data:
+    name: {{ project_name }}_mongodb_data
+  rocketchat_uploads:
+    name: {{ project_name }}_uploads_data
+
+networks:
+  rocketchat_internal:
+    internal: true
+  {{ traefik_docker_network_name }}:
+    external: true

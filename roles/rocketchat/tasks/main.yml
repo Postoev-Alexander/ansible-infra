@@ -1,9 +1,4 @@
 ---
-- name: 🧐 Debug loaded variables
-  ansible.builtin.debug:
-    msg: "Value for project_name is '{{ project_name | default('!!! UNDEFINED !!!') }}'"
-  run_once: true
-# 1
 - name: Create persistent volume directories if they don't exist
   ansible.builtin.file:
     path: "/var/lib/docker/volumes/{{ item }}"
@@ -18,15 +13,15 @@
     project_name: "{{ project_name }}"
     definition: "{{ lookup('ansible.builtin.template', 'docker-compose.yml.j2') | from_yaml }}"
     state: present
-    pull: always # Рекомендуется для обновления образов
+    pull: always
   register: compose_result
 
-# Эта задача выполнится только один раз, при первом создании контейнеров.
+# Эта задача выполнится только если docker-compose что-то изменил (например, создал контейнеры).
 - name: Pause for replica set initialization on first run
   ansible.builtin.pause:
     seconds: 20
-    prompt: "Waiting 20 seconds for MongoDB replica set to initialize on the first run..."
-  when: compose_result.actions | map(attribute='action') | select('equalto', 'create') | list | length > 0
+    prompt: "Waiting 20 seconds for services to initialize after changes..."
+  when: compose_result.changed
 
 - name: Debug Rocket.Chat deployment result
   ansible.builtin.debug:

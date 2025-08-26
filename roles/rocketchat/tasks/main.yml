@@ -8,6 +8,34 @@
     - "{{ project_name }}_mongodb_data"
     - "{{ project_name }}_uploads_data"
 
+- name: Create local directory for secrets
+  ansible.builtin.file:
+    path: "./secrets/{{ project_name }}"
+    state: directory
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate MongoDB keyfile if it does not exist
+  ansible.builtin.shell: "openssl rand -base64 756 > ./secrets/{{ project_name }}/mongo.key"
+  args:
+    creates: "./secrets/{{ project_name }}/mongo.key"
+  delegate_to: localhost
+  run_once: true
+
+- name: Create directory for MongoDB keyfile on remote host
+  ansible.builtin.file:
+    path: "/opt/rocketchat/mongo_key"
+    state: directory
+    mode: '0755'
+
+- name: Copy MongoDB keyfile to remote host
+  ansible.builtin.copy:
+    src: "./secrets/{{ project_name }}/mongo.key"
+    dest: "/opt/rocketchat/mongo_key/mongo.key"
+    owner: 999  # User ID for mongodb inside the container
+    group: 999  # Group ID for mongodb inside the container
+    mode: '0400' # Только чтение для владельца
+    
 - name: Deploy Rocket.Chat stack
   community.docker.docker_compose_v2:
     project_name: "{{ project_name }}"

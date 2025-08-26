@@ -3,20 +3,12 @@ services:
     image: mongo:{{ mongodb_version }}
     container_name: {{ project_name }}_mongo
     restart: unless-stopped
-    command: mongod --replSet {{ mongo_replicaset_name }} --oplogSize 128 --keyFile /etc/mongo/mongo.key --auth
+    command: mongod --replSet {{ mongo_replicaset_name }} --oplogSize 128
     volumes:
       - mongodb_data:/data/db
-      - /opt/rocketchat/mongo_key/mongo.key:/etc/mongo/mongo.key:ro
     environment:
       - MONGO_INITDB_ROOT_USERNAME={{ mongo_user }}
       - MONGO_INITDB_ROOT_PASSWORD={{ mongo_password }}
-    healthcheck:
-      test: |
-        mongosh --host 127.0.0.1 -u {{ mongo_user }} -p '{{ mongo_password }}' --authenticationDatabase admin --quiet --eval "quit(db.hello().isWritablePrimary ? 0 : 1)"
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 60s
     networks:
       - rocketchat_internal
 
@@ -24,6 +16,9 @@ services:
     image: rocketchat/rocket.chat:{{ rocketchat_version }}
     container_name: {{ project_name }}_app
     restart: unless-stopped
+    ## Эта команда ждет 15 секунд перед запуском приложения ##
+    command: >
+      sh -c "sleep 15 && node main.js"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.rocketchat.rule=Host(`{{ rocketchat_subdomain }}.{{ main_domain }}`)"
@@ -34,29 +29,27 @@ services:
     environment:
       - PORT=3000
       - ROOT_URL=https://{{ rocketchat_subdomain }}.{{ main_domain }}
-      - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password | urlencode }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
-      # Мы убрали REPLICA_SET_INIT и вернули отдельный контейнер для инициализации
+      - MONGO_URL=mongodb://{{ mongo_user | urlencode }}:{{ mongo_password | urlencode }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
+      ## Возвращаем MONGO_OPLOG_URL для стабильности ##
+      - MONGO_OPLOG_URL=mongodb://{{ mongo_user | urlencode }}:{{ mongo_password | urlencode }}@mongo:27017/local?replicaSet={{ mongo_replicaset_name }}
       - FileUpload_Storage_Type=GridFS
     depends_on:
-      mongo:
-        condition: service_healthy
+      - mongo
     volumes:
       - rocketchat_uploads:/app/uploads
     networks:
       - rocketchat_internal
       - {{ traefik_docker_network_name }}
 
-  # --- ФИНАЛЬНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
   mongo-init-replica:
     image: mongo:{{ mongodb_version }}
     container_name: {{ project_name }}_mongo_init
-    # Используем формат списка для команды - это самый надежный способ
     command:
       - sh
       - -c
       - |
-        echo "Waiting 30s for MongoDB to be ready before initiating replica set..."
-        sleep 30
+        echo "Waiting 20s for MongoDB to start..."
+        sleep 20
         echo "Initiating replica set..."
         mongosh --host mongo:27017 -u {{ mongo_user }} -p '{{ mongo_password }}' --authenticationDatabase admin --eval '
           try {

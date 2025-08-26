@@ -10,16 +10,14 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME={{ mongo_user }}
       - MONGO_INITDB_ROOT_PASSWORD={{ mongo_password }}
-      - MONGO_INITDB_DATABASE=rocketchat
     healthcheck:
-      # --- ФИНАЛЬНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
-      # Эта команда не зависит от grep и использует современный API db.hello()
       test: |
         mongosh --host 127.0.0.1 -u {{ mongo_user }} -p '{{ mongo_password }}' --authenticationDatabase admin --quiet --eval "quit(db.hello().isWritablePrimary ? 0 : 1)"
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 20s
+      retries: 15
+      ## We increase this to give the replica set more time to initialize ##
+      start_period: 60s
     networks:
       - rocketchat_internal
 
@@ -39,7 +37,6 @@ services:
       - ROOT_URL=https://{{ rocketchat_subdomain }}.{{ main_domain }}
       - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password | urlencode }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
       - FileUpload_Storage_Type=GridFS
-      - REPLICA_SET_INIT=true
     depends_on:
       mongo:
         condition: service_healthy
@@ -49,14 +46,11 @@ services:
       - rocketchat_internal
       - {{ traefik_docker_network_name }}
 
-volumes:
-  mongodb_data:
-    name: {{ project_name }}_mongodb_data
-  rocketchat_uploads:
-    name: {{ project_name }}_uploads_data
-
-networks:
-  rocketchat_internal:
-    internal: true
-  {{ traefik_docker_network_name }}:
-    external: true
+  ## We bring back this container to reliably initialize the replica set ##
+  mongo-init-replica:
+    image: mongo:{{ mongodb_version }}
+    container_name: {{ project_name }}_mongo_init
+    command: >
+      sh -c
+        "sleep 30 && mongosh --host mongo:27017 -u {{ mongo_user }} -p '{{ mongo_password }}' --authenticationDatabase admin --eval \"
+        rs.initiate({ _id: '{{ mongo_replicaset_name }}', members: [ { _id: 0, host: 'mongo:270

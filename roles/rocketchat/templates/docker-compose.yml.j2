@@ -25,8 +25,6 @@ services:
     image: rocketchat/rocket.chat:{{ rocketchat_version }}
     container_name: {{ project_name }}_app
     restart: unless-stopped
-    # Убираем entrypoint, т.к. образ сам умеет запускать `node main.js`
-    # command: ["node", "main.js"] # Это команда по умолчанию, ее можно не указывать
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.rocketchat.rule=Host(`{{ rocketchat_subdomain }}.{{ main_domain }}`)"
@@ -42,10 +40,11 @@ services:
     environment:
       - PORT=3000
       - ROOT_URL=https://{{ rocketchat_subdomain }}.{{ main_domain }}
-      - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
-      - MONGO_OPLOG_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/local?replicaSet={{ mongo_replicaset_name }}
+      # --- ИЗМЕНЕНИЯ ЗДЕСЬ ---
+      # 1. Убрали MONGO_OPLOG_URL.
+      # 2. Добавили &directConnection=true в MONGO_URL.
+      - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}&directConnection=true
       - FileUpload_Storage_Type=GridFS
-    # Теперь Rocket.Chat будет ждать, пока healthcheck MongoDB не станет 'healthy'
     depends_on:
       mongo:
         condition: service_healthy

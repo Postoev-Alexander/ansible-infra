@@ -8,14 +8,16 @@ services:
       - mongodb_data:/data/db
       - /opt/rocketchat/mongo_key/mongo.key:/etc/mongo/mongo.key:ro
     environment:
+      # Эти переменные инициализируют пользователя и базу при первом запуске
       - MONGO_INITDB_ROOT_USERNAME={{ mongo_user }}
       - MONGO_INITDB_ROOT_PASSWORD={{ mongo_password }}
-    # Healthcheck дожидается, пока MongoDB будет готов принимать команды
+      - MONGO_INITDB_DATABASE=rocketchat
     healthcheck:
+      # Проверяем, что сервер не просто запущен, а готов выполнять команды как PRIMARY
       test: |
-        mongosh --host 127.0.0.1 -u {{ mongo_user }} -p {{ mongo_password }} --authenticationDatabase admin --eval "db.adminCommand('ping')" || exit 1
+        mongosh --host 127.0.0.1 -u {{ mongo_user }} -p '{{ mongo_password }}' --authenticationDatabase admin --quiet --eval "db.isMaster().ismaster" | grep -q "true"
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 20
       start_period: 20s
     networks:
@@ -32,19 +34,16 @@ services:
       - "traefik.http.routers.rocketchat.tls=true"
       - "traefik.http.routers.rocketchat.tls.certresolver=mytlschallenge"
       - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.rc-headers.headers.SSLRedirect=true"
-      - "traefik.http.middlewares.rc-headers.headers.STSSeconds=315360000"
-      - "traefik.http.middlewares.rc-headers.headers.browserXSSFilter=true"
-      - "traefik.http.middlewares.rc-headers.headers.contentTypeNosniff=true"
-      - "traefik.http.routers.rocketchat.middlewares=rc-headers@docker"
     environment:
       - PORT=3000
       - ROOT_URL=https://{{ rocketchat_subdomain }}.{{ main_domain }}
-      # --- ИЗМЕНЕНИЯ ЗДЕСЬ ---
-      # 1. Убрали MONGO_OPLOG_URL.
-      # 2. Добавили &directConnection=true в MONGO_URL.
-      - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}&directConnection=true
+      # Используем фильтр `urlencode` для пароля, чтобы экранировать спецсимволы
+      - MONGO_URL=mongodb://{{ mongo_user }}:{{ mongo_password | urlencode }}@mongo:27017/rocketchat?replicaSet={{ mongo_replicaset_name }}
+      # Убираем эту переменную, она больше не нужна и может мешать
+      # - MONGO_OPLOG_URL=...
       - FileUpload_Storage_Type=GridFS
+      # Добавляем команду для инициализации реплики прямо из Rocket.Chat
+      - REPLICA_SET_INIT=true
     depends_on:
       mongo:
         condition: service_healthy
@@ -53,19 +52,6 @@ services:
     networks:
       - rocketchat_internal
       - {{ traefik_docker_network_name }}
-
-  mongo-init-replica:
-    image: mongo:{{ mongodb_version }}
-    container_name: {{ project_name }}_mongo_init
-    # ИЗМЕНЕНИЕ: bash -> sh
-    command: >
-      sh -c
-        "sleep 10 && mongosh --host mongo:27017 -u {{ mongo_user }} -p {{ mongo_password }} --authenticationDatabase admin --eval \"
-        rs.initiate({ _id: '{{ mongo_replicaset_name }}', members: [ { _id: 0, host: 'mongo:27017' } ] });\""
-    depends_on:
-      - mongo
-    networks:
-      - rocketchat_internal
 
 volumes:
   mongodb_data:

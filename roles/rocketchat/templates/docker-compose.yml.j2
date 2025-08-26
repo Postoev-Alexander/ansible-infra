@@ -1,15 +1,11 @@
-version: '3.8'
-
 services:
   mongo:
     image: mongo:{{ mongodb_version }}
     container_name: {{ project_name }}_mongo
     restart: unless-stopped
-    # Добавляем --keyFile и --auth для безопасной репликации
     command: mongod --replSet {{ mongo_replicaset_name }} --oplogSize 128 --keyFile /etc/mongo/mongo.key --auth
     volumes:
       - mongodb_data:/data/db
-      # Пробрасываем ключ-файл с хоста внутрь контейнера
       - /opt/rocketchat/mongo_key/mongo.key:/etc/mongo/mongo.key:ro
     environment:
       - MONGO_INITDB_ROOT_USERNAME={{ mongo_user }}
@@ -21,9 +17,9 @@ services:
     image: rocketchat/rocket.chat:{{ rocketchat_version }}
     container_name: {{ project_name }}_app
     restart: unless-stopped
-    # ЗАМЕНЯЕМ 'command' НА 'entrypoint'
+    # ИЗМЕНЕНИЕ: bash -> sh
     entrypoint: >
-      bash -c
+      sh -c
         "for i in `seq 1 30`; do
           echo \"Attempt $$i to connect to MongoDB...\";
           mongosh --host mongo:27017 --eval 'quit(0)' > /dev/null 2>&1 && break;
@@ -60,8 +56,9 @@ services:
   mongo-init-replica:
     image: mongo:{{ mongodb_version }}
     container_name: {{ project_name }}_mongo_init
+    # ИЗМЕНЕНИЕ: bash -> sh
     command: >
-      bash -c
+      sh -c
         "sleep 10 && mongosh --host mongo:27017 -u {{ mongo_user }} -p {{ mongo_password }} --authenticationDatabase admin --eval \"
         rs.initiate({ _id: '{{ mongo_replicaset_name }}', members: [ { _id: 0, host: 'mongo:27017' } ] });\""
     depends_on:

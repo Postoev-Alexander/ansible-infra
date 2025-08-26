@@ -54,3 +54,5 @@
 - name: Debug Rocket.Chat deployment result
   ansible.builtin.debug:
     msg: "Rocket.Chat deployment finished. It should be available at https://{{ rocketchat_subdomain }}.{{ main_domain }}"
+    
+    

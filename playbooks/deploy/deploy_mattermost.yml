@@ -1,0 +1,9 @@
+---
+- name: Deploy Mattermost Service
+  hosts: mattermost # Указываем группу из hosts.ini
+  become: yes
+  roles:
+    - docker_compose
+  tags:
+    - mattermost
+    - deploy

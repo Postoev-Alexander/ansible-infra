@@ -7,6 +7,13 @@
     - docker_compose  
 
   tasks:
+    - name: Ensure Python dependencies for docker_stack are installed
+      ansible.builtin.apt:
+        name:
+          - python3-jsondiff
+          - python3-yaml
+        state: present
+        
     - name: Ensure Docker Swarm is initialized
       community.docker.docker_swarm:
         state: present

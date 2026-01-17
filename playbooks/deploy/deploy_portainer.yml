@@ -19,6 +19,12 @@
         state: present
       register: swarm_result
 
+    - name: Ensure stack directory exists
+      ansible.builtin.file:
+        path: "{{ portainer_stack_dir }}"
+        state: directory
+        mode: '0755'
+
     - name: Create Portainer stack file from template
       copy:
         dest: "{{ portainer_stack_file }}"

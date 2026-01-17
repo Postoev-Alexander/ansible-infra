@@ -4,7 +4,7 @@
   become: yes
 
   roles:
-    - docker_compose  # Используем твою готовую роль для установки Docker
+    - docker_compose  
 
   tasks:
     - name: Ensure Python dependencies for docker_stack are installed

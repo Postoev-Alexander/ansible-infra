@@ -22,6 +22,6 @@ restic_repo_subpath: "portainer_vps"
 # ВНИМАНИЕ: Проверь точный путь вольюма командой:
 # docker volume inspect portainer_data
 restic_backup_paths:
-  - "/var/lib/docker/volumes/portainer_data/_data"
+  - "/var/lib/docker/volumes/portainer_portainer_data"
   # Если у тебя есть еще какие-то папки (например, docker-compose файлы в /opt), добавь их сюда:
-  # - "/opt/portainer"
+  - "/root/dir01"

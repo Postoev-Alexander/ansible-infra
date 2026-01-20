@@ -15,7 +15,7 @@
     mode: '0700'
   become: yes
 
-- name: Настроить Cron (каждый день в 3:00)
+- name: Настроить Cron (каждый день в 4:00)
   cron:
     name: "Daily Restic Backup"
     minute: "0"

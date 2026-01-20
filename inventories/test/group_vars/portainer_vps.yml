@@ -13,7 +13,7 @@ stack_name: "portainer"
 
 
 # Имя remote из твоего rclone.conf
-restic_rclone_remote: "gdrive3"
+restic_rclone_remote: "gdrive03"
 
 # Имя папки внутри бэкапов (чтобы не путать с другими серверами)
 restic_repo_subpath: "portainer_vps"

@@ -1,0 +1,25 @@
+---
+- name: Установить Restic
+  package:
+    name: restic
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Создать скрипт резервного копирования
+  template:
+    src: backup_script.sh.j2
+    dest: /usr/local/bin/run_restic_backup.sh
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: Настроить Cron (каждый день в 3:00)
+  cron:
+    name: "Daily Restic Backup"
+    minute: "0"
+    hour: "4"
+    job: "/usr/local/bin/run_restic_backup.sh >> /var/log/restic_backup.log 2>&1"
+    state: present
+  become: yes

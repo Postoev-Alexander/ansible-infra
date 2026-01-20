@@ -8,3 +8,20 @@ portainer_stack_file: "{{ portainer_stack_dir }}/portainer-agent-stack.yml"
 
 # Имя стека в Docker Swarm
 stack_name: "portainer"
+
+
+
+
+# Имя remote из твоего rclone.conf
+restic_rclone_remote: "gdrive2"
+
+# Имя папки внутри бэкапов (чтобы не путать с другими серверами)
+restic_repo_subpath: "portainer_vps"
+
+# Что именно бэкапить.
+# ВНИМАНИЕ: Проверь точный путь вольюма командой:
+# docker volume inspect portainer_data
+restic_backup_paths:
+  - "/var/lib/docker/volumes/portainer_data/_data"
+  # Если у тебя есть еще какие-то папки (например, docker-compose файлы в /opt), добавь их сюда:
+  # - "/opt/portainer"

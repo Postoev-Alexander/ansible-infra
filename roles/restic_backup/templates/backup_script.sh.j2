@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+# --- КОНФИГУРАЦИЯ ---
+# Пароль для шифрования (берем из Vault)
+export RESTIC_PASSWORD="{{ vault_restic_password }}"
+
+# Путь к конфигу Rclone (обычно root, так как бэкапим системные папки)
+export RCLONE_CONFIG="/root/.config/rclone/rclone.conf"
+
+# Куда кладем бэкапы (rclone:<имя_ремоута>:<путь>)
+# repo_subpath берем из переменных хоста, чтобы у каждого сервера была своя папка
+REPO="rclone:{{ restic_rclone_remote }}:restic_backups/{{ restic_repo_subpath }}"
+
+# Что бэкапим (список путей через пробел)
+BACKUP_PATHS="{{ restic_backup_paths | join(' ') }}"
+
+# --- 1. ИНИЦИАЛИЗАЦИЯ ---
+# Проверяем, есть ли уже репозиторий. Если нет — создаем.
+if ! restic -r "$REPO" snapshots > /dev/null 2>&1; then
+    echo "$(date): Репозиторий не найден. Инициализация..."
+    restic -r "$REPO" init
+fi
+
+# --- 2. БЭКАП ---
+echo "$(date): Начинаю резервное копирование..."
+echo "Пути: $BACKUP_PATHS"
+
+restic -r "$REPO" backup $BACKUP_PATHS --tag scheduled
+
+# --- 3. РОТАЦИЯ (ОЧИСТКА) ---
+echo "$(date): Удаление старых копий..."
+# Твоя схема: 7 дней, 4 недели, 12 месяцев, 3 года
+restic -r "$REPO" forget \
+    --keep-daily 7 \
+    --keep-weekly 4 \
+    --keep-monthly 12 \
+    --keep-yearly 3 \
+    --prune
+
+echo "$(date): Готово!"

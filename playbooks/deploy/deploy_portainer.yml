@@ -1,6 +1,6 @@
 ---
 - name: Deploy Portainer Stack to Swarm
-  hosts: portainer_vps
+  hosts: portainer
   become: yes
 
   roles:

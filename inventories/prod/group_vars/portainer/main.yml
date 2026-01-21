@@ -1,0 +1,8 @@
+---
+# Версия Portainer
+portainer_version: "2.33.6"
+# Путь, где будет лежать конфиг стека на удаленном сервере
+portainer_stack_dir: "/root/portainer_stack"
+portainer_stack_file: "{{ portainer_stack_dir }}/portainer-agent-stack.yml"
+# Имя стека в Docker Swarm
+stack_name: "portainer"

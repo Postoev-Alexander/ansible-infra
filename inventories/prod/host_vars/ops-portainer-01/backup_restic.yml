@@ -1,0 +1,9 @@
+---
+# Настройки Restic для сервера
+restic_rclone_remote: "gdrive03"
+restic_repo_subpath: "ops-portainer-01"
+
+# Собираем пути ОТ ВСЕХ сервисов этого сервера здесь:
+restic_backup_paths:
+  # portainer_data
+  - "/var/lib/docker/volumes/portainer_portainer_data"

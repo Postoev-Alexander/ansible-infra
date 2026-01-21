@@ -1,13 +1,8 @@
 ---
 - name: Настройка Restic Backup
-  hosts: portainer_vps # Можно ограничить, например: hosts: portainer_vps
+  hosts: backup_targets 
   become: yes
-  
-  # Глобальные переменные (если не вынесены в group_vars/all.yml)
-  vars:
-  # Пароль лучше хранить в ansible-vault!
-  # vault_restic_password: "{{ vault_restic_password }}" 
-  
+
   roles:
     - role: rclone_setup
     - role: restic_backup

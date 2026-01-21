@@ -6,6 +6,7 @@ set -e
 export RESTIC_PASSWORD="{{ vault_restic_password }}"
 
 # Путь к конфигу Rclone (обычно root, так как бэкапим системные папки)
+
 export RCLONE_CONFIG="/root/.config/rclone/rclone.conf"
 
 # Куда кладем бэкапы (rclone:<имя_ремоута>:<путь>)

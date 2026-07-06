@@ -1,4 +1,4 @@
 # inventories/prod/group_vars/n8n_vps.yml
 n8n_version: "2.28.6"
-n8n_subdomain: "n8n"
+n8n_subdomain: "n8n-prod"
 main_domain: "winzardy.com"

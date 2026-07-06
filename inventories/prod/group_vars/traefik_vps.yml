@@ -1,0 +1,7 @@
+# inventories/prod/group_vars/traefik_vps.yml
+traefik_volume_name: "traefik_data"
+traefik_api_insecure: false
+traefik_enable_dashboard_access: true
+traefik_dashboard_port: 8080
+traefik_dashboard_port_in: 8080
+traefik_ssl_email: "alexandr.postoev@winzardy.com"  

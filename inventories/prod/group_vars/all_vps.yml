@@ -1,2 +1,0 @@
-# inventories/prod/group_vars/all_vps.yml
-traefik_docker_network_name: "traefik_proxy_network"
